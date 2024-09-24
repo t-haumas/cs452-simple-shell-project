@@ -1,0 +1,11 @@
+I did this:
+
+@t-haumas ➜ /workspaces/cs452-simple-shell-project (master) $ sudo sysctl vm.mmap_rnd_bits
+vm.mmap_rnd_bits = 32
+@t-haumas ➜ /workspaces/cs452-simple-shell-project (master) $ sudo sysctl vm.mmap_rnd_bits=28
+vm.mmap_rnd_bits = 28
+@t-haumas ➜ /workspaces/cs452-simple-shell-project (master) $ sudo sysctl vm.mmap_rnd_bits
+vm.mmap_rnd_bits = 28
+
+
+Changed it from 32 to 28.

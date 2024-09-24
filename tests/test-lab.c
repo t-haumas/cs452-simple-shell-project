@@ -1,4 +1,4 @@
-#define RUNNING 0
+#define RUNNING 1
 
 #include <string.h>
 #include "harness/unity.h"
