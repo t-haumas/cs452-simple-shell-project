@@ -1,8 +1,16 @@
 #include "lab.h"
+#include <string.h>
 
 char *get_prompt(const char *env)
 {
-    return 0;
+    if (env != NULL)
+    {
+        const char *promptEnvVarContents = getenv("MY_PROMPT");
+        if (promptEnvVarContents != NULL) {
+            return promptEnvVarContents;
+        }
+    }
+    return "> ";
 }
 
 int change_dir(char **dir)
@@ -41,7 +49,7 @@ void parse_args(int argc, char **argv)
 {
 }
 
-const char *getPromptName()
+const char *getProgramName()
 {
     return "Simple Shell implemented by Thomas Ricks";
 }

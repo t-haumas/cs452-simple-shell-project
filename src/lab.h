@@ -120,7 +120,8 @@ extern "C"
    */
   void parse_args(int argc, char **argv);
 
-  const char* getPromptName();
+  //todo: make javadoc.
+  const char* getProgramName();
 
 
 #ifdef __cplusplus
@@ -128,3 +129,9 @@ extern "C"
 #endif
 
 #endif
+
+//todos:
+/**
+ * Cleanup.
+ * Get rid of all other todos, then get rid of this one.
+ */
