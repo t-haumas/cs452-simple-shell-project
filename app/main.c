@@ -4,13 +4,14 @@
 
 int main(int argc, char** argv)
 {
-  printf("hello world\n");
+  //printf("hello world\n");
   
   int c;
   while ((c = getopt(argc, argv, "v")) != -1) {
     switch (c) {
       case 'v':
-        fprintf(stdout, "You said you want the version\n");
+        fprintf(stdout, "%s Version %d.%d\n", getPromptName(), lab_VERSION_MAJOR, lab_VERSION_MINOR);
+        return 0;
         break;
       // case 'b':
       //   fprintf(stdout, "You said b.\n");

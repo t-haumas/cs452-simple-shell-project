@@ -40,3 +40,8 @@ void sh_destroy(struct shell* sh)
 void parse_args(int argc, char **argv)
 {
 }
+
+const char *getPromptName()
+{
+    return "Simple Shell implemented by Thomas Ricks";
+}
