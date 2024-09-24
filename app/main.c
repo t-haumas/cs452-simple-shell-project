@@ -1,8 +1,27 @@
-#include <stdio.h>
-#include <unistd.h>
-#include "../src/lab.h"
 #include <readline/readline.h>
 #include <readline/history.h>
+#include <stdio.h>
+#include <string.h>
+#include <unistd.h>
+
+#include "../src/lab.h"
+
+
+void freeUp(char* strX) {
+  free(strX);
+  strX = NULL;
+}
+
+void prepareForExit(/*shell, */ char* prompt) {
+    // Free shell object.
+  freeUp(prompt);
+}
+
+void afterLineProcessed(char* trimmed, char* line) {
+  freeUp(trimmed);
+  add_history(line);
+  freeUp(line);
+}
 
 int main(int argc, char** argv)
 {
@@ -29,17 +48,34 @@ int main(int argc, char** argv)
 
   // Main execution loop
 
-  char *line;
+  // Allocate shell object
+
+  char* line;
+  char* prompt = get_prompt("MY_PROMPT");
   using_history();
-  while ((line = readline(get_prompt("MY_PROMPT"))))
+
+  while ((line = readline(prompt)))
   {
     // for echoing:
-    //printf("%s\n", line);
-    
-    // process line
-    add_history(line);
-    free(line);
+    // printf("%s\n", line);
+    char *trimmed = trim_white(line);
+
+    if (strcmp(trimmed, "exit") == 0)
+    {
+      afterLineProcessed(trimmed, line);
+      prepareForExit(/*shell, */ prompt);
+      return 0;
+    }
+    else
+    {
+      // process line
+    }
+    afterLineProcessed(trimmed, line);
   }
+
+  fprintf(stdout, "\n");
+  freeUp(line);
+  prepareForExit(/*shell,*/ prompt);
 
   return 0;
 }

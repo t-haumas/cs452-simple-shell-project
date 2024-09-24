@@ -1,16 +1,23 @@
 #include "lab.h"
+
 #include <string.h>
+#include <stdio.h>
 
 char *get_prompt(const char *env)
 {
+    const char* constStr = "> ";
+    
     if (env != NULL)
     {
         const char *promptEnvVarContents = getenv("MY_PROMPT");
         if (promptEnvVarContents != NULL) {
-            return promptEnvVarContents;
+            constStr = promptEnvVarContents;
         }
     }
-    return "> ";
+
+    char* mutableStr = strdup(constStr);
+
+    return mutableStr; //todo: can maybe simplify
 }
 
 int change_dir(char **dir)
@@ -29,7 +36,20 @@ void cmd_free(char **line)
 
 char *trim_white(char *line)
 {
-    return 0;
+    //Todo: implement this.
+    char* trimmed;
+    int length = strlen(line);
+
+    trimmed = (char*)malloc((length + 1) * sizeof(char));
+
+    if (trimmed == NULL) {
+        fprintf(stderr, "Memory allocation failed\n");
+        return line;
+    }
+
+    // Copy a string into the allocated memory
+    strcpy(trimmed, line);
+    return trimmed;
 }
 
 bool do_builtin(struct shell* sh, char **argv)

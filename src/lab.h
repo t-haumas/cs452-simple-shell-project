@@ -133,5 +133,7 @@ extern "C"
 //todos:
 /**
  * Cleanup.
+ * Run make check, make sure no memory leaks.
+ * 
  * Get rid of all other todos, then get rid of this one.
  */
