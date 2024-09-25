@@ -22,6 +22,7 @@ extern "C"
     struct termios shell_tmodes;
     int shell_terminal;
     char *prompt;
+    bool exiting;
   };
 
 
@@ -134,6 +135,7 @@ extern "C"
 /**
  * Cleanup.
  * Run make check, make sure no memory leaks.
- * 
+ * Other places to put errno? Like when memory allocation doesn't work?
+ * Make sure errno is being set to 0 before it matters everywhere using it.
  * Get rid of all other todos, then get rid of this one.
  */
