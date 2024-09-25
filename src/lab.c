@@ -6,6 +6,17 @@
 #include <string.h>
 #include <stdio.h>
 
+//todo: delete this. for debugging only.
+void printList(char** strArray) {
+    int idx = 0;
+    printf("[");
+    while (strArray[idx] != NULL) {
+        printf("%s, ", strArray[idx]);
+        idx++;
+    }
+    printf("]\n");
+}
+
 bool is(char* one, char* two) {
     return strcmp(one, two) == 0;
 }
@@ -83,7 +94,9 @@ char **cmd_parse(char const *line)
 {
     const char* delims = " ";
 
-    char *trimmed = trim_white(line); //todo: maybe make a copy first?
+    char* destroyableLine = strdup(line);
+
+    char *trimmed = trim_white(destroyableLine); //todo: maybe make a copy first?
     int numTokens = sysconf(_SC_ARG_MAX); //todo: make sure this is right.
     char** arrayOfStrings = malloc(sizeof(char*) * numTokens + 1);
 
@@ -115,15 +128,17 @@ char **cmd_parse(char const *line)
 
 void cmd_free(char **line)
 {
+    printList(line);
     // int strIdx = 0;
-    // printf("%s\n", line[1]);
+    // //printf("%s\n", line[1]);
     // while (line[strIdx] != NULL) {
     //     printf("%d\n", strIdx);
     //     printf("freeing '%s'\n", line[strIdx]);
     //     free(line[strIdx]);
+    //     line[strIdx] = NULL;
     //     strIdx++;
-    //     printf("%d\n\n", strIdx);
-    //     printf("next: '%s'\n", line[strIdx]);
+    //     printf("%d\n", strIdx);
+    //     printf("next: '%s'\n", line[strIdx + 1]);
     // }
 
     // char* a = line[0];
@@ -142,19 +157,36 @@ void cmd_free(char **line)
 
 char *trim_white(char *line)
 {
-    //Todo: implement this.
-    char* trimmed;
-    int length = strlen(line);
+    // //Todo: implement this.
+    // char* trimmed;
+    // int length = strlen(line);
 
-    trimmed = (char*)malloc((length + 1) * sizeof(char));
+    // trimmed = (char*)malloc((length + 1) * sizeof(char));
 
-    if (trimmed == NULL) {
-        fprintf(stderr, "Memory allocation failed\n");
+    // if (trimmed == NULL) {
+    //     fprintf(stderr, "Memory allocation failed\n");
+    //     return line;
+    // }
+
+    // // Copy a string into the allocated memory
+    // strcpy(trimmed, line);
+    // return trimmed;
+
+    if (line == NULL) {
         return line;
     }
 
-    // Copy a string into the allocated memory
-    strcpy(trimmed, line);
+    int idx = 0;
+    while (line[idx] == ' ') {
+        idx++;
+    }
+
+    int endIdx = strlen(line);
+    while (line[endIdx - 1] == ' ') {
+        endIdx--;
+    }
+    line[endIdx] = '\0';
+    char* trimmed = &line[idx];
     return trimmed;
 }
 
