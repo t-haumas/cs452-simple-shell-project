@@ -23,7 +23,7 @@ bool is(char* one, char* two) {
 
 char *get_prompt(const char *env)
 {
-    const char* constStr = "> ";
+    const char* constStr = "shell>";
 
     if (env != NULL)
     {
@@ -46,7 +46,7 @@ int change_dir(char **dir)
         return -1;
     }
 
-    char* toDir = *dir;
+    char* toDir = dir[1];
 
     const char *toDirectory;
     if (toDir == NULL) {
@@ -95,18 +95,24 @@ char **cmd_parse(char const *line)
     const char* delims = " ";
 
     char* destroyableLine = strdup(line);
-
     char *trimmed = trim_white(destroyableLine); //todo: maybe make a copy first?
+    printf("-%s-\n", trimmed);
+    free(destroyableLine);
+
     int numTokens = sysconf(_SC_ARG_MAX); //todo: make sure this is right.
     char** arrayOfStrings = malloc(sizeof(char*) * numTokens + 1);
 
     char* currentToken = strtok(trimmed, delims);
+    printf("-%s-\n", currentToken);
     int currentTokenIndex = 0;
     while (currentToken != NULL) {
-        arrayOfStrings[currentTokenIndex] = currentToken;
+        printf("-%s-\n", currentToken);
+        arrayOfStrings[currentTokenIndex] = strdup(currentToken);
         currentTokenIndex++;
         currentToken = strtok(NULL, delims);
     }
+
+    free(trimmed);
 
     arrayOfStrings[currentTokenIndex] = NULL;
 
@@ -129,17 +135,18 @@ char **cmd_parse(char const *line)
 void cmd_free(char **line)
 {
     printList(line);
-    // int strIdx = 0;
-    // //printf("%s\n", line[1]);
-    // while (line[strIdx] != NULL) {
-    //     printf("%d\n", strIdx);
-    //     printf("freeing '%s'\n", line[strIdx]);
-    //     free(line[strIdx]);
-    //     line[strIdx] = NULL;
-    //     strIdx++;
-    //     printf("%d\n", strIdx);
-    //     printf("next: '%s'\n", line[strIdx + 1]);
-    // }
+    int strIdx = 0;
+//    printf("%s\n", line[0]);
+ //   printf("%s\n", line[1]);
+    //printf("%s\n", line[1]);
+    while (line[strIdx] != NULL) {
+        printf("%d\n", strIdx);
+        printf("freeing '%s'\n", line[strIdx]);
+        free(line[strIdx]);
+        line[strIdx] = NULL;
+        strIdx++;
+        //printf("next: '%s'\n", line[strIdx + 1]);
+    }
 
     // char* a = line[0];
     // int idx = 0;
@@ -151,7 +158,7 @@ void cmd_free(char **line)
     // }
     // printf("]\n");
 
-    free(line[0]); //todo: why is this working? try printing the list after each step.
+    //free(line[0]); //todo: why is this working? try printing the list after each step.
     free(line);
 }
 
@@ -172,29 +179,43 @@ char *trim_white(char *line)
     // strcpy(trimmed, line);
     // return trimmed;
 
-    if (line == NULL) {
-        return line;
+    char* trimmed = strdup(line);
+
+    if (trimmed == NULL) {
+        return trimmed;
+    }
+
+    if (strlen(trimmed) == 0) {
+        return trimmed;
     }
 
     int idx = 0;
-    while (line[idx] == ' ') {
+    while (idx < (int)strlen(trimmed) && trimmed[idx] == ' ') {
         idx++;
     }
 
-    int endIdx = strlen(line);
-    while (line[endIdx - 1] == ' ') {
+    int endIdx = strlen(trimmed);
+    while (endIdx > 0 && trimmed[endIdx - 1] == ' ') {
         endIdx--;
     }
-    line[endIdx] = '\0';
-    char* trimmed = &line[idx];
-    return trimmed;
+
+    if (endIdx < 0) {
+        return trimmed;
+    }
+
+    trimmed[endIdx] = '\0';
+    char* trimmedRet = &trimmed[idx];
+
+    char* final = strdup(trimmedRet);
+    free(trimmed);
+    return final;
 }
 
 bool do_builtin(struct shell* sh, char **argv)
 {
     char* cmd = argv[0];
     if (is(cmd, "cd")) {
-        change_dir(&argv[1]);
+        change_dir(argv);
         return true;
     } else if (is(cmd, "history")) {
         HIST_ENTRY** allHistory = history_list();

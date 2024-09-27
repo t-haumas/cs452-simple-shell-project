@@ -22,8 +22,8 @@ void prepareForExit(/*shell, */ char *prompt)
 void afterLineProcessed(char **strArray, char *line)
 {
     cmd_free(strArray);
-    add_history(line);
-    printf("%dAdded history: %s\n", getpid(), line);
+    add_history(line); //todo: should we add the whole line or just t5he trimmed?
+    //printf("%dAdded history: %s\n", getpid(), line);
     freeUp(line);
 }
 
@@ -98,7 +98,7 @@ int main(int argc, char **argv)
                 int error = execvp(cmdName, formatted);
                 if (error == -1)
                 {
-                    // fprintf(stderr, "An error occured during the child process.\n");
+                    fprintf(stderr, "An error occured during the child process.\n");
                     cmd_free(formatted);
                     freeUp(line);
                     prepareForExit(/*shell, */ prompt);
