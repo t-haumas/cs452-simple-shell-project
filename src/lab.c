@@ -6,6 +6,70 @@
 #include <signal.h>
 #include <string.h>
 #include <stdio.h>
+#include <wait.h>
+
+
+void printJob(job info) {
+    printf("[%d] %d %s\n", info.jobNum, info.pid, info.command);
+}
+
+void printJobRunning(job info) {
+    printf("[%d] %d Running %s\n", info.jobNum, info.pid, info.command);
+}
+
+void printDone(job doneJob) {
+    printf("[%d] Done %s\n", doneJob.jobNum, doneJob.command);
+}
+
+void removeFromList(jobNode** jobList, jobNode* current, jobNode* previous, jobNode* next) {
+    // current will never be null.
+    // current could be the first item, in which case previous would be null. In that case, set the jobList pointer to next.
+    // next always may or may not be null.
+    // printf("\n\n");
+    // printJobList(*jobList);
+    // printf("removing...\n");
+    free(current->info.command);
+    free(current);
+    //printf("making next: %p\n", next);
+
+    if (previous == NULL) {
+        //printf("reset head\n");
+        *jobList = next;
+    } else {
+        previous->next = next;
+    }
+    //printJobList(*jobList);
+}
+
+void reportAndManageFinishedJobs(jobNode** jobList, bool printAny, bool printAll) {
+    //printf("updating...%d\n", getpid());
+    //printJobList(jobList);
+    jobNode* previousNode = NULL;
+    jobNode* currentNode = *jobList;
+    //printf("pointer: %p\n", *jobList);
+    //printJobList(*jobList);
+    while (currentNode != NULL) {
+        int doneWaiting = waitpid(currentNode->info.pid, NULL, WNOHANG);
+        jobNode* nextNode = currentNode->next;
+        if (doneWaiting != 0) {
+            //printf("done!\n");
+            if (printAny)
+                printDone(currentNode->info);
+            removeFromList(jobList, currentNode, previousNode, nextNode);
+            // done waiting.
+        } // else if (doneWaiting < 0) {
+        //     fprintf(stderr, "Unable to check status of pid %d (%s).\n", currentNode->info.pid, strerror(errno));
+        // }
+        else {
+            previousNode = currentNode;
+            if (printAny && printAll)
+                printJobRunning(currentNode->info);
+        }
+            currentNode = nextNode;
+    }
+}
+
+
 
 //todo: delete this. for debugging only.
 void printList(char** strArray) {
@@ -215,6 +279,17 @@ char *trim_white(char *line)
 bool do_builtin(struct shell* sh, char **argv)
 {
     char* cmd = argv[0];
+    bool printAll = false;
+    if (is(cmd, "jobs")) {
+        printAll = true;
+    }
+
+    reportAndManageFinishedJobs(&jobList, true, printAll);
+
+    if (printAll) {
+        return true;
+    }
+
     if (is(cmd, "cd")) {
         change_dir(argv);
         return true;

@@ -1,3 +1,4 @@
+#include <errno.h>
 #include <readline/readline.h>
 #include <readline/history.h>
 #include <signal.h>
@@ -8,20 +9,7 @@
 
 #include "../src/lab.h"
 
-int nextJobID;
 
-typedef struct job {
-    int jobNum;
-    pid_t pid;
-    char* command;
-} job;
-
-typedef struct jobNode {
-    job info;
-    struct jobNode* next;
-} jobNode;
-
-jobNode* jobList;
 
 jobNode* createJobNode(job newJob) {
     jobNode* newJobNode = (jobNode*)malloc(sizeof(jobNode));
@@ -30,7 +18,20 @@ jobNode* createJobNode(job newJob) {
     return newJobNode;
 }
 
+
+// void printJobList(jobNode* head) {
+//     jobNode* currentNode = head;
+//     while (currentNode != NULL) {
+//         //printf("want to print\n");
+//         printJob(currentNode->info);
+//         currentNode = currentNode->next;
+//     }
+// }
+
 void append(jobNode** head, job newJob) {
+    //printf("\n\n");
+    //printJobList(*head);
+    //printf("appending...\n");
     jobNode* previousNode = NULL;
     jobNode* currentNode = *head;
     while (currentNode != NULL) {
@@ -38,25 +39,12 @@ void append(jobNode** head, job newJob) {
         currentNode = currentNode->next;
     }
     if (previousNode == NULL) {
-        printf("making new head\n");
+        //printf("making new head\n");
         *head = createJobNode(newJob);
     } else {
         previousNode->next = createJobNode(newJob);
     }
-}
-
-void printJob(job info) {
-    printf("[%d] %d %s\n", info.jobNum, info.pid, info.command);
-}
-
-
-void printJobList(jobNode* head) {
-    jobNode* currentNode = head;
-    while (currentNode != NULL) {
-        //printf("want to print\n");
-        printJob(currentNode->info);
-        currentNode = currentNode->next;
-    }
+    //printJobList(*head);
 }
 
 void freeUp(char *strX)
@@ -109,12 +97,27 @@ bool getIsBackground(char** command) {
     return false;
 }
 
+int getHighestJobNumber(jobNode* jobList) {
+    int highestNumber = 0;
+    jobNode* currentNode = jobList;
+    while (currentNode != NULL) {
+        int currentJobNumber = currentNode->info.jobNum;
+        if (currentJobNumber > highestNumber) {
+            highestNumber = currentJobNumber;
+        }
+        currentNode = currentNode->next;
+    }
+
+    return highestNumber;
+}
+
+
+
 
 
 int main(int argc, char **argv)
 {
     // printf("hello world\n");
-    nextJobID = 0;
     jobList = NULL;
 
     int c;
@@ -150,8 +153,10 @@ int main(int argc, char **argv)
     sh_init(&sh);
     while ((line = readline(prompt)))
     {
+        //fprintf(stdout, " - I'm receiving (%d)\n", getpid());
         char **formatted = cmd_parse(line);
         if (formatted[0] == NULL) {
+            reportAndManageFinishedJobs(&jobList, true, false); //todo: need to print finished ones after printing newly created ones?
             afterLineProcessed(formatted, line);
             continue;
         }
@@ -175,12 +180,14 @@ int main(int argc, char **argv)
             pid_t my_id = fork();
             if (my_id == -1)
             {
+                reportAndManageFinishedJobs(&jobList, true, false);
                 // Fork failed
                 fprintf(stderr, "Failed to start a new process.\n");
                 exit(1);
             }
             else if (my_id == 0)
             {
+                //printf("Child, my parent is %d.\n", getppid());
                 // Child process
                 if (sh.shell_is_interactive) {
                     //fprintf(stdout, "interactive!\n");
@@ -217,19 +224,23 @@ int main(int argc, char **argv)
                     } else {
                         job newJob;
                         newJob.command = strdup(line);
-                        newJob.jobNum = nextJobID++;
+                        newJob.jobNum = getHighestJobNumber(jobList) + 1;
                         newJob.pid = my_id;
                         append(&jobList, newJob);
+                        printJob(newJob);
                         //printf("[%d] %d %s\n", nextJobID++, my_id, line); //todo: change this to print node(?)
-                        printJobList(jobList);
+                        //printJobList(jobList);
                     }
+                    reportAndManageFinishedJobs(&jobList, true, false);
 
                 /* Restore the shell’s terminal modes.  */
                 // tcgetattr(shell_terminal, &j->tmodes); // todo: is this necessary?
                 // tcsetattr(shell_terminal, TCSADRAIN, &shell_tmodes);
                 }
                 else {
+                    reportAndManageFinishedJobs(&jobList, false, false);
                     //todo: need to set child process group? Example seems like you don't need to.
+                    printf("strange block\n");
                     waitpid(my_id, NULL, 0);
 
                 }
@@ -242,6 +253,7 @@ int main(int argc, char **argv)
         afterLineProcessed(formatted, line);
     }
     fprintf(stdout, "all done: %s\n", line);
+    //todo: dealloc jobs list, same for if they type exit.
 
     fprintf(stdout, "\n");
     freeUp(line);
