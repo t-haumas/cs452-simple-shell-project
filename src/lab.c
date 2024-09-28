@@ -3,6 +3,7 @@
 #include <errno.h> //todo: need this?
 #include <pwd.h>
 #include <readline/history.h>
+#include <signal.h>
 #include <string.h>
 #include <stdio.h>
 
@@ -96,17 +97,17 @@ char **cmd_parse(char const *line)
 
     char* destroyableLine = strdup(line);
     char *trimmed = trim_white(destroyableLine); //todo: maybe make a copy first?
-    printf("-%s-\n", trimmed);
+    //printf("-%s-\n", trimmed);
     free(destroyableLine);
 
     int numTokens = sysconf(_SC_ARG_MAX); //todo: make sure this is right.
     char** arrayOfStrings = malloc(sizeof(char*) * numTokens + 1);
 
     char* currentToken = strtok(trimmed, delims);
-    printf("-%s-\n", currentToken);
+    //printf("-%s-\n", currentToken);
     int currentTokenIndex = 0;
     while (currentToken != NULL) {
-        printf("-%s-\n", currentToken);
+        //printf("-%s-\n", currentToken);
         arrayOfStrings[currentTokenIndex] = strdup(currentToken);
         currentTokenIndex++;
         currentToken = strtok(NULL, delims);
@@ -134,14 +135,14 @@ char **cmd_parse(char const *line)
 
 void cmd_free(char **line)
 {
-    printList(line);
+    //printList(line);
     int strIdx = 0;
 //    printf("%s\n", line[0]);
  //   printf("%s\n", line[1]);
     //printf("%s\n", line[1]);
     while (line[strIdx] != NULL) {
-        printf("%d\n", strIdx);
-        printf("freeing '%s'\n", line[strIdx]);
+        //printf("%d\n", strIdx);
+        //printf("freeing '%s'\n", line[strIdx]);
         free(line[strIdx]);
         line[strIdx] = NULL;
         strIdx++;
@@ -238,7 +239,37 @@ bool do_builtin(struct shell* sh, char **argv)
 void sh_init(struct shell* sh)
 {
     sh->exiting = false;
-    //todo: more.
+
+    sh->shell_terminal = STDIN_FILENO;
+    sh->shell_is_interactive = isatty(sh->shell_terminal);
+
+    if (sh->shell_is_interactive)
+    {
+        while (tcgetpgrp(sh->shell_terminal) != (sh->shell_pgid = getpgrp())) {
+            fprintf(stdout, "waiting\n");
+            kill(-sh->shell_pgid, SIGTTIN);
+        }
+
+        signal(SIGINT, SIG_IGN);
+        signal(SIGQUIT, SIG_IGN);
+        signal(SIGTSTP, SIG_IGN);
+        signal(SIGTTIN, SIG_IGN);
+        signal(SIGTTOU, SIG_IGN);
+        signal(SIGCHLD, SIG_IGN);
+
+        sh->shell_pgid = getpid();
+        if (setpgid(sh->shell_pgid, sh->shell_pgid) < 0)
+        {
+            perror("Couldn't put the shell in its own process group");
+            exit(1);
+        }
+
+        /* Grab control of the terminal.  */
+        tcsetpgrp(sh->shell_terminal, sh->shell_pgid);
+
+        /* Save default terminal attributes for shell.  */
+        tcgetattr(sh->shell_terminal, &sh->shell_tmodes);
+    }
 }
 
 void sh_destroy(struct shell* sh)

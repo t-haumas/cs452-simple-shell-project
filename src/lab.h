@@ -138,4 +138,7 @@ extern "C"
  * Other places to put errno? Like when memory allocation doesn't work?
  * Make sure errno is being set to 0 before it matters everywhere using it.
  * Get rid of all other todos, then get rid of this one.
+ * Is file descriptor redirection necessary?
+ * Need pipes? Semicolons?
+ * Print jobs done in jobs command, and when pressed enter?
  */
