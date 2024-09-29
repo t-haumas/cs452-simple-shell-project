@@ -65,7 +65,6 @@ void afterLineProcessed(char **strArray, char *line)
 {
     cmd_free(strArray);
     add_history(line); // todo: should we add the whole line or just t5he trimmed?
-    // printf("%dAdded history: %s\n", getpid(), line);
     freeUp(line);
 }
 
@@ -145,7 +144,7 @@ int main(int argc, char **argv)
         char **formatted = cmd_parse(line);
         if (formatted[0] == NULL)
         {
-            reportAndManageFinishedJobs(&jobList, true, false); // todo: need to print finished ones after printing newly created ones?
+            reportAndManageFinishedJobs(&jobList, true, false);
             afterLineProcessed(formatted, line);
             continue;
         }
@@ -162,22 +161,22 @@ int main(int argc, char **argv)
         }
         else
         {
-            // get is background
+            // Get is background
             bool isForeground = !getIsBackground(formatted);
-            // printf("is foreground: %d\n", isForeground);
-            //  Fork and do command
+
+            // Fork and do command
             pid_t my_id = fork();
             if (my_id == -1)
             {
-                reportAndManageFinishedJobs(&jobList, true, false);
                 // Fork failed
+                reportAndManageFinishedJobs(&jobList, true, false);
                 fprintf(stderr, "Failed to start a new process.\n");
                 exit(1);
             }
             else if (my_id == 0)
             {
-                // printf("Child, my parent is %d.\n", getppid());
-                //  Child process
+                // Child process
+                // printf("Child, my parent is %d.\n", getppid()); //todo: remove this.
                 if (sh.shell_is_interactive)
                 {
                     // fprintf(stdout, "interactive!\n");
@@ -191,15 +190,12 @@ int main(int argc, char **argv)
                 }
                 char *cmdName = formatted[0];
                 execvp(cmdName, formatted);
-                // if (error == -1)
-                // {
+
                 fprintf(stderr, "An error occured during the child process.\n");
                 cmd_free(formatted);
                 freeUp(line);
                 prepareForExit(&sh);
-                exit(1); // -1; // todo: should print that it wasn't a valid command?
-                // } //todo: clean this area up.
-                // return 0;
+                exit(1); // todo: should print that it wasn't a valid command?
             }
             else
             {
@@ -222,8 +218,6 @@ int main(int argc, char **argv)
                         newJob.pid = my_id;
                         append(&jobList, newJob);
                         printJob(newJob);
-                        // printf("[%d] %d %s\n", nextJobID++, my_id, line); //todo: change this to print node(?)
-                        // printJobList(jobList);
                     }
                     reportAndManageFinishedJobs(&jobList, true, false);
 
@@ -236,17 +230,14 @@ int main(int argc, char **argv)
                     reportAndManageFinishedJobs(&jobList, false, false);
                     // todo: need to set child process group? Example seems like you don't need to.
                     printf("strange block\n");
-                    waitpid(my_id, NULL, 0);
+                    waitpid(my_id, NULL, 0); //todo: maybe delete this else block and the if check if we find out that the parent is always interactive.
                 }
-
-                // printf("!! Done waiting!!\n");
             }
         }
 
         afterLineProcessed(formatted, line);
     }
-    // fprintf(stdout, "all done: %s\n", line);
-    // todo: dealloc jobs list, same for if they type exit.
+    // todo: dealloc jobs list [if need to free before exiting], same for if they type exit.
 
     fprintf(stdout, "\n");
     freeUp(line);

@@ -137,7 +137,6 @@ extern "C"
      */
     void parse_args(int argc, char **argv);
 
-    // todo: make javadoc.
     const char *getProgramName();
 
 #ifdef __cplusplus

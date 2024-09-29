@@ -1,6 +1,6 @@
 #include "lab.h"
 
-#include <errno.h> //todo: need this?
+#include <errno.h>
 #include <pwd.h>
 #include <readline/history.h>
 #include <signal.h>
@@ -174,40 +174,24 @@ char **cmd_parse(char const *line)
     const char *delims = " ";
 
     char *destroyableLine = strdup(line);
-    char *trimmed = trim_white(destroyableLine); // todo: maybe make a copy first?
-    // printf("-%s-\n", trimmed);
+    char *trimmed = trim_white(destroyableLine);
+
     free(destroyableLine);
 
     const int maxArgCount = sysconf(_SC_ARG_MAX);
     char **arrayOfStrings = malloc(sizeof(char *) * maxArgCount + 1);
 
     char *currentToken = strtok(trimmed, delims);
-    // printf("-%s-\n", currentToken);
     int currentTokenIndex = 0;
     while (currentToken != NULL && currentTokenIndex < maxArgCount)
     {
-        // printf("-%s-\n", currentToken);
         arrayOfStrings[currentTokenIndex] = strdup(currentToken);
         currentTokenIndex++;
         currentToken = strtok(NULL, delims);
     }
 
     free(trimmed);
-
     arrayOfStrings[currentTokenIndex] = NULL;
-
-    /* for debugging only*/
-    // char* a = arrayOfStrings[0];
-    // int idx = 0;
-    // printf("[");
-    // while (a != NULL) {
-    //     printf("%s, ", a);
-    //     idx++;
-    //     a = arrayOfStrings[idx];
-    // }
-    // printf("]\n");
-
-    // todo: delte the above section
 
     return arrayOfStrings;
 }
@@ -216,9 +200,6 @@ void cmd_free(char **line)
 {
     // printList(line);
     int strIdx = 0;
-    //    printf("%s\n", line[0]);
-    //   printf("%s\n", line[1]);
-    // printf("%s\n", line[1]);
     while (line[strIdx] != NULL)
     {
         // printf("%d\n", strIdx);
@@ -364,8 +345,7 @@ void sh_init(struct shell *sh)
 
 void sh_destroy(struct shell *sh)
 {
-    // Free shell object.
-    free(sh->prompt); //todo: should be freeUp? freeUp everywhere?
+    free(sh->prompt);
 }
 
 void parse_args(int argc, char **argv)
