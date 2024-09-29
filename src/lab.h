@@ -26,19 +26,16 @@ extern "C"
         struct jobNode *next;
     } jobNode;
 
-
     void printJob(job info);
     void printJobRunning(job info);
     void printDone(job doneJob);
 
     void reportAndManageFinishedJobs(jobNode **jobList, bool printAny, bool printAll);
 
-    jobNode* jobList;
+    jobNode *jobList;
+    bool exitAfterPrintingVersion;
 
-
-
-    struct shell
-    {
+    struct shell {
         int shell_is_interactive;
         pid_t shell_pgid;
         struct termios shell_tmodes;
@@ -148,18 +145,3 @@ extern "C"
 #endif
 
 #endif
-
-// todos:
-/**
- * Cleanup.
- * Implement dangling methods.
- * Run make check, make sure no memory leaks.
- * Other places to put errno? Like when memory allocation doesn't work?
- * Make sure errno is being set to 0 before it matters everywhere using it.
- * Get rid of all other todos, then get rid of this one.
- * Is file descriptor redirection necessary?
- * Need pipes? Semicolons?
- * Print jobs done in jobs command, and when pressed enter?
- * Waitpid error mystery?
- * Memory leaks in tests?
- */
