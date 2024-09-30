@@ -2,11 +2,11 @@
 
 #include <errno.h>
 #include <pwd.h>
-#include <readline/history.h>
 #include <signal.h>
 #include <string.h>
 #include <stdio.h>
 #include <wait.h>
+#include <readline/history.h>
 
 void printJob(job info)
 {
