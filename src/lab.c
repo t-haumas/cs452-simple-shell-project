@@ -23,16 +23,33 @@ void printDone(job doneJob)
     printf("[%d] Done %s\n", doneJob.jobNum, doneJob.command);
 }
 
+void freeUp(void* ptr)
+{
+    free(ptr);
+    ptr = NULL;
+}
+
+/**
+ * @brief removes an element from a linked list of jobs.
+ * 
+ * @param jobList a pointer to a pointer to the head of the job linked list.
+ * @param current the jobNode to remove from the list. Should never be NULL.
+ * @param previous the jobNode before current in the list. If current is the
+ * first element of the list, previous should be NULL.
+ * @param next the jobNode after current in the list. If current is the last
+ * element of the list, next should be NULL.
+ */
 void removeFromList(jobNode **jobList, jobNode *current, jobNode *previous, jobNode *next)
 {
+    //todo: print error if current is NULL. or joblist is null. and maybe more.
     // current will never be null.
     // current could be the first item, in which case previous would be null. In that case, set the jobList pointer to next.
     // next always may or may not be null.
     // printf("\n\n");
     // printJobList(*jobList);
     // printf("removing...\n");
-    free(current->info.command);
-    free(current);
+    freeUp(current->info.command);
+    freeUp(current);
     // printf("making next: %p\n", next);
 
     if (previous == NULL)
@@ -79,19 +96,13 @@ void reportAndManageFinishedJobs(jobNode **jobList, bool printAny, bool printAll
     }
 }
 
-// todo: delete this. for debugging only.
-void printList(char **strArray)
-{
-    int idx = 0;
-    printf("[");
-    while (strArray[idx] != NULL)
-    {
-        printf("%s, ", strArray[idx]);
-        idx++;
-    }
-    printf("]\n");
-}
-
+/**
+ * @brief a helper function for testing if 2 strings are equivalent.
+ * 
+ * @param one the first string
+ * @param two another string
+ * @return true if the strings are equivalent, false if not.
+ */
 bool is(char *one, char *two)
 {
     return strcmp(one, two) == 0;
@@ -176,7 +187,7 @@ char **cmd_parse(char const *line)
     char *destroyableLine = strdup(line);
     char *trimmed = trim_white(destroyableLine);
 
-    free(destroyableLine);
+    freeUp(destroyableLine);
 
     const int maxArgCount = sysconf(_SC_ARG_MAX);
     char **arrayOfStrings = malloc(sizeof(char *) * maxArgCount + 1);
@@ -190,7 +201,7 @@ char **cmd_parse(char const *line)
         currentToken = strtok(NULL, delims);
     }
 
-    free(trimmed);
+    freeUp(trimmed);
     arrayOfStrings[currentTokenIndex] = NULL;
 
     return arrayOfStrings;
@@ -204,13 +215,13 @@ void cmd_free(char **line)
     {
         // printf("%d\n", strIdx);
         // printf("freeing '%s'\n", line[strIdx]);
-        free(line[strIdx]);
+        freeUp(line[strIdx]);
         line[strIdx] = NULL;
         strIdx++;
         // printf("next: '%s'\n", line[strIdx + 1]);
     }
 
-    free(line);
+    freeUp(line);
 }
 
 char *trim_white(char *line)
@@ -243,7 +254,7 @@ char *trim_white(char *line)
     char *trimmedRet = &trimmed[idx];
 
     char *final = strdup(trimmedRet);
-    free(trimmed);
+    freeUp(trimmed);
     return final;
 }
 
@@ -345,7 +356,7 @@ void sh_init(struct shell *sh)
 
 void sh_destroy(struct shell *sh)
 {
-    free(sh->prompt);
+    freeUp(sh->prompt);
 }
 
 void parse_args(int argc, char **argv)
@@ -360,7 +371,6 @@ void parse_args(int argc, char **argv)
             exitAfterPrintingVersion = true;
             break;
         default:
-            printf("Default\n");
             break;
         }
     }

@@ -9,6 +9,13 @@
 
 #include "../src/lab.h"
 
+/**
+ * @brief creates a jobNode from a job in order to add it to a jobNode linked list.
+ * 
+ * @param newJob the job to create a jobNode from
+ * @return a jobNode containing the info from newJob, ready to be added to a
+ * jobNode linked list.
+ */
 jobNode *createJobNode(job newJob)
 {
     jobNode *newJobNode = (jobNode *)malloc(sizeof(jobNode));
@@ -17,15 +24,12 @@ jobNode *createJobNode(job newJob)
     return newJobNode;
 }
 
-// void printJobList(jobNode* head) {
-//     jobNode* currentNode = head;
-//     while (currentNode != NULL) {
-//         //printf("want to print\n");
-//         printJob(currentNode->info);
-//         currentNode = currentNode->next;
-//     }
-// }
-
+/**
+ * @brief adds an entry to the end of a jobNode linked list.
+ * 
+ * @param head a pointer to a pointer to the head of the jobNode linked list.
+ * @param newJob a job to add to the end of the linked list.
+ */
 void append(jobNode **head, job newJob)
 {
     // printf("\n\n");
@@ -50,17 +54,26 @@ void append(jobNode **head, job newJob)
     // printJobList(*head);
 }
 
-void freeUp(char *strX)
-{
-    free(strX);
-    strX = NULL;
-}
-
+/**
+ * @brief helper/wrapper function that prepares for program exit. Right now,
+ * it just calls sh_destroy.
+ * 
+ * @param sh the shell struct to call sh_destroy on.
+ */
 void prepareForExit(struct shell* sh)
 {
     sh_destroy(sh);
 }
 
+/**
+ * @brief helper function to free the provided pointers, and save the user's
+ * input to the history.
+ * 
+ * @param strArray the array of strings created with cmd_parse that represents
+ * the command the user is running.
+ * @param line the line returned by readline, which is the raw string the user
+ * typed in.
+ */
 void afterLineProcessed(char **strArray, char *line)
 {
     cmd_free(strArray);
@@ -68,6 +81,16 @@ void afterLineProcessed(char **strArray, char *line)
     freeUp(line);
 }
 
+/**
+ * @brief Sets the specified process's process group to its own group, and
+ * if isForeground is true, grabs control of the console.
+ * 
+ * @param id the process ID.
+ * @param sh the shell struct containing info on the file descriptor associated
+ * with the terminal to take control of.
+ * @param isForeground whether or not the process with pid id should run in the
+ * foreground and take control of the console.
+ */
 void setUpChildProcessGroupAndForeground(pid_t id, struct shell *sh, bool isForeground)
 {
     setpgid(id, id);
@@ -75,6 +98,12 @@ void setUpChildProcessGroupAndForeground(pid_t id, struct shell *sh, bool isFore
         tcsetpgrp(sh->shell_terminal, id);
 }
 
+/**
+ * @brief returns the number of tokens in a command.
+ * 
+ * @param command an array of strings representing a command to the shell.
+ * @return the length of the command array.
+ */
 int getLength(char **command)
 {
     int len = 0;
@@ -85,6 +114,14 @@ int getLength(char **command)
     return len;
 }
 
+/**
+ * @brief checks if the command's last character is an ampersand ('&'),
+ * and should be run in the background. If true, this function also deletes
+ * the ampersand character by replacing it with the null character ('\0').
+ * 
+ * @param command The array of strings representing the command.
+ * @return true if the command should be run in the background, false if not.
+ */
 bool getIsBackground(char **command)
 {
     int cmd_len = getLength(command);
@@ -104,6 +141,14 @@ bool getIsBackground(char **command)
     return false;
 }
 
+/**
+ * @brief returns the highest job number of all jobs in the given jobList.
+ * Note: this does not care if the jobs in the list are running or done.
+ * It returns the max job number of all of them.
+ * 
+ * @param jobList the linked list of jobs to check.
+ * @return the highest job number of any job in the list.
+ */
 int getHighestJobNumber(jobNode *jobList)
 {
     int highestNumber = 0;

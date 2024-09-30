@@ -25,13 +25,7 @@ extern "C"
         job info;
         struct jobNode *next;
     } jobNode;
-
-    void printJob(job info);
-    void printJobRunning(job info);
-    void printDone(job doneJob);
-
-    void reportAndManageFinishedJobs(jobNode **jobList, bool printAny, bool printAll);
-
+    
     jobNode *jobList;
     bool exitAfterPrintingVersion;
 
@@ -43,6 +37,51 @@ extern "C"
         char *prompt;
         bool exiting;
     };
+
+    /**
+     * @brief prints info about a job to the console in the following format:
+     * [n] process-id command
+     * 
+     * @param info the job to print
+     */
+    void printJob(job info);
+
+    /**
+     * @brief prints info about a job to the console in the following format:
+     * [n] process-id Running command
+     * 
+     * @param info the job to print
+     */
+    void printJobRunning(job info);
+
+    /**
+     * @brief prints info about a job to the console in the following format:
+     * [n] Done command
+     * 
+     * @param doneJob the job to print
+     */
+    void printDone(job doneJob);
+
+    /**
+     * @brief a helper function to free a pointer's allocated memory, and set
+     * the pointer to NULL so freeing it again won't cause a problem.
+     * 
+     * @param ptr the pointer to free
+     */
+    void freeUp(void* ptr);
+
+    /**
+     * @brief loops through a provided list of jobs, and removes all jobs that
+     * are discovered to be finished. If printAny is true, also prints to the
+     * console any finished jobs while iterating. If printAll && printAny is
+     * true, also prints to the console all jobs that are still running while
+     * iterating.
+     * 
+     * @param jobList the linked list of jobs to iterate through
+     * @param printAny if finished jobs should be printed to the console
+     * @param printAll if running jobs should be printed to the console
+     */
+    void reportAndManageFinishedJobs(jobNode **jobList, bool printAny, bool printAll);
 
     /**
      * @brief Set the shell prompt. This function will attempt to load a prompt
@@ -137,6 +176,10 @@ extern "C"
      */
     void parse_args(int argc, char **argv);
 
+    /**
+     * @brief Returns a string name for this program, for use when printing
+     * the version.
+     */
     const char *getProgramName();
 
 #ifdef __cplusplus
