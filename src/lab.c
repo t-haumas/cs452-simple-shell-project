@@ -23,7 +23,7 @@ void printDone(job doneJob)
     printf("[%d] Done %s\n", doneJob.jobNum, doneJob.command);
 }
 
-void freeUp(void* ptr)
+void freeUp(void *ptr)
 {
     free(ptr);
     ptr = NULL;
@@ -31,7 +31,7 @@ void freeUp(void* ptr)
 
 /**
  * @brief removes an element from a linked list of jobs.
- * 
+ *
  * @param jobList a pointer to a pointer to the head of the job linked list.
  * @param current the jobNode to remove from the list. Should never be NULL.
  * @param previous the jobNode before current in the list. If current is the
@@ -41,48 +41,41 @@ void freeUp(void* ptr)
  */
 void removeFromList(jobNode **jobList, jobNode *current, jobNode *previous, jobNode *next)
 {
-    //todo: print error if current is NULL. or joblist is null. and maybe more.
-    // current will never be null.
-    // current could be the first item, in which case previous would be null. In that case, set the jobList pointer to next.
-    // next always may or may not be null.
-    // printf("\n\n");
-    // printJobList(*jobList);
-    // printf("removing...\n");
+    // Current will never be null.
+    // Current could be the first item, in which case previous would be null.
+    // Next always may or may not be null.
     freeUp(current->info.command);
     freeUp(current);
-    // printf("making next: %p\n", next);
 
     if (previous == NULL)
     {
-        // printf("reset head\n");
         *jobList = next;
     }
     else
     {
         previous->next = next;
     }
-    // printJobList(*jobList);
 }
 
 void reportAndManageFinishedJobs(jobNode **jobList, bool printAny, bool printAll)
 {
-    // printf("updating...%d\n", getpid());
-    // printJobList(jobList);
+    if (jobList == NULL)
+    {
+        printf("O H NOOO\n");
+        return; // This shouldn't happen.
+    }
+
     jobNode *previousNode = NULL;
     jobNode *currentNode = *jobList;
-    // printf("pointer: %p\n", *jobList);
-    // printJobList(*jobList);
     while (currentNode != NULL)
     {
         int doneWaiting = waitpid(currentNode->info.pid, NULL, WNOHANG);
         jobNode *nextNode = currentNode->next;
         if (doneWaiting != 0)
         {
-            // printf("done!\n");
             if (printAny)
                 printDone(currentNode->info);
             removeFromList(jobList, currentNode, previousNode, nextNode);
-            // done waiting.
         } // else if (doneWaiting < 0) {
         //     fprintf(stderr, "Unable to check status of pid %d (%s).\n", currentNode->info.pid, strerror(errno));
         // }
@@ -98,7 +91,7 @@ void reportAndManageFinishedJobs(jobNode **jobList, bool printAny, bool printAll
 
 /**
  * @brief a helper function for testing if 2 strings are equivalent.
- * 
+ *
  * @param one the first string
  * @param two another string
  * @return true if the strings are equivalent, false if not.
@@ -151,7 +144,8 @@ int change_dir(char **dir)
             errno = 0;
             if (userEntry == NULL)
             {
-                if (errno == 0) {
+                if (errno == 0)
+                {
                     errno = ENOENT;
                 }
                 perror("Unable to get user passwd entry to find home directory");
@@ -209,16 +203,12 @@ char **cmd_parse(char const *line)
 
 void cmd_free(char **line)
 {
-    // printList(line);
     int strIdx = 0;
     while (line[strIdx] != NULL)
     {
-        // printf("%d\n", strIdx);
-        // printf("freeing '%s'\n", line[strIdx]);
         freeUp(line[strIdx]);
         line[strIdx] = NULL;
         strIdx++;
-        // printf("next: '%s'\n", line[strIdx + 1]);
     }
 
     freeUp(line);
@@ -260,13 +250,15 @@ char *trim_white(char *line)
 
 bool do_builtin(struct shell *sh, char **argv)
 {
-    if (argv == NULL) {
+    if (argv == NULL)
+    {
         errno = EINVAL;
         perror("Invalid command string");
         return false;
     }
 
-    if (argv[0] == NULL) {
+    if (argv[0] == NULL)
+    {
         errno = EINVAL;
         perror("Invalid command string portion");
         return false;
@@ -323,11 +315,10 @@ void sh_init(struct shell *sh)
     sh->shell_terminal = STDIN_FILENO;
     sh->shell_is_interactive = isatty(sh->shell_terminal);
 
-    if (sh->shell_is_interactive)
+    if (sh->shell_is_interactive) // This will always be true if we are running on stdin and stdout.
     {
         while (tcgetpgrp(sh->shell_terminal) != (sh->shell_pgid = getpgrp()))
         {
-            fprintf(stdout, "waiting\n");
             kill(-sh->shell_pgid, SIGTTIN);
         }
 
@@ -342,6 +333,7 @@ void sh_init(struct shell *sh)
         if (setpgid(sh->shell_pgid, sh->shell_pgid) < 0)
         {
             perror("Couldn't put the shell in its own process group");
+            // todo: need to do this?? Either don't exit, or have to free everything! If exiting, can set exit flag to true and deal with it in main after calling sh_init.
             exit(1);
         }
 
@@ -351,7 +343,7 @@ void sh_init(struct shell *sh)
         /* Save default terminal attributes for shell.  */
         tcgetattr(sh->shell_terminal, &sh->shell_tmodes);
     }
-    //todo: what about shell_pgid and shell_tmodes in the else case?
+    // todo: what about shell_pgid and shell_tmodes in the else case?
 }
 
 void sh_destroy(struct shell *sh)

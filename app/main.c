@@ -11,7 +11,7 @@
 
 /**
  * @brief creates a jobNode from a job in order to add it to a jobNode linked list.
- * 
+ *
  * @param newJob the job to create a jobNode from
  * @return a jobNode containing the info from newJob, ready to be added to a
  * jobNode linked list.
@@ -25,16 +25,31 @@ jobNode *createJobNode(job newJob)
 }
 
 /**
+ * @brief frees a linked list of jobs and any memory owned by the job structs.
+ *
+ * @param jobList a pointer to a jobNode serving as the head of the list.
+ */
+void freeList(jobNode *jobList)
+{
+    jobNode *current = jobList;
+    jobNode *next;
+    while (current != NULL)
+    {
+        next = current->next;
+        freeUp(current->info.command);
+        freeUp(current);
+        current = next;
+    }
+}
+
+/**
  * @brief adds an entry to the end of a jobNode linked list.
- * 
+ *
  * @param head a pointer to a pointer to the head of the jobNode linked list.
  * @param newJob a job to add to the end of the linked list.
  */
 void append(jobNode **head, job newJob)
 {
-    // printf("\n\n");
-    // printJobList(*head);
-    // printf("appending...\n");
     jobNode *previousNode = NULL;
     jobNode *currentNode = *head;
     while (currentNode != NULL)
@@ -44,31 +59,31 @@ void append(jobNode **head, job newJob)
     }
     if (previousNode == NULL)
     {
-        // printf("making new head\n");
         *head = createJobNode(newJob);
     }
     else
     {
         previousNode->next = createJobNode(newJob);
     }
-    // printJobList(*head);
 }
 
 /**
- * @brief helper/wrapper function that prepares for program exit. Right now,
- * it just calls sh_destroy.
- * 
+ * @brief helper/wrapper function that prepares for program exit by freeing
+ * memory owned by the parameters.
+ *
  * @param sh the shell struct to call sh_destroy on.
+ * @param jobList the linked list of jobs to free.
  */
-void prepareForExit(struct shell* sh)
+void prepareForExit(struct shell *sh, jobNode *jobList)
 {
     sh_destroy(sh);
+    freeList(jobList);
 }
 
 /**
  * @brief helper function to free the provided pointers, and save the user's
  * input to the history.
- * 
+ *
  * @param strArray the array of strings created with cmd_parse that represents
  * the command the user is running.
  * @param line the line returned by readline, which is the raw string the user
@@ -77,14 +92,14 @@ void prepareForExit(struct shell* sh)
 void afterLineProcessed(char **strArray, char *line)
 {
     cmd_free(strArray);
-    add_history(line); // todo: should we add the whole line or just t5he trimmed?
+    add_history(line);
     freeUp(line);
 }
 
 /**
  * @brief Sets the specified process's process group to its own group, and
  * if isForeground is true, grabs control of the console.
- * 
+ *
  * @param id the process ID.
  * @param sh the shell struct containing info on the file descriptor associated
  * with the terminal to take control of.
@@ -100,7 +115,7 @@ void setUpChildProcessGroupAndForeground(pid_t id, struct shell *sh, bool isFore
 
 /**
  * @brief returns the number of tokens in a command.
- * 
+ *
  * @param command an array of strings representing a command to the shell.
  * @return the length of the command array.
  */
@@ -118,7 +133,7 @@ int getLength(char **command)
  * @brief checks if the command's last character is an ampersand ('&'),
  * and should be run in the background. If true, this function also deletes
  * the ampersand character by replacing it with the null character ('\0').
- * 
+ *
  * @param command The array of strings representing the command.
  * @return true if the command should be run in the background, false if not.
  */
@@ -145,7 +160,7 @@ bool getIsBackground(char **command)
  * @brief returns the highest job number of all jobs in the given jobList.
  * Note: this does not care if the jobs in the list are running or done.
  * It returns the max job number of all of them.
- * 
+ *
  * @param jobList the linked list of jobs to check.
  * @return the highest job number of any job in the list.
  */
@@ -173,7 +188,8 @@ int main(int argc, char **argv)
 
     parse_args(argc, argv);
 
-    if (exitAfterPrintingVersion) {
+    if (exitAfterPrintingVersion)
+    {
         return 0;
     }
 
@@ -200,7 +216,7 @@ int main(int argc, char **argv)
             if (sh.exiting)
             {
                 afterLineProcessed(formatted, line);
-                prepareForExit(&sh);
+                prepareForExit(&sh, jobList);
                 return 0;
             }
         }
@@ -216,15 +232,15 @@ int main(int argc, char **argv)
                 // Fork failed
                 reportAndManageFinishedJobs(&jobList, true, false);
                 fprintf(stderr, "Failed to start a new process.\n");
+                afterLineProcessed(formatted, line);
+                prepareForExit(&sh, jobList);
                 exit(1);
             }
             else if (my_id == 0)
             {
                 // Child process
-                // printf("Child, my parent is %d.\n", getppid()); //todo: remove this.
                 if (sh.shell_is_interactive)
                 {
-                    // fprintf(stdout, "interactive!\n");
                     pid_t child = getpid();
                     setUpChildProcessGroupAndForeground(child, &sh, isForeground);
                     signal(SIGINT, SIG_DFL);
@@ -236,11 +252,11 @@ int main(int argc, char **argv)
                 char *cmdName = formatted[0];
                 execvp(cmdName, formatted);
 
-                fprintf(stderr, "An error occured during the child process.\n");
+                perror("An error occured while executing the command");
                 cmd_free(formatted);
                 freeUp(line);
-                prepareForExit(&sh);
-                exit(1); // todo: should print that it wasn't a valid command?
+                prepareForExit(&sh, jobList);
+                exit(1);
             }
             else
             {
@@ -251,9 +267,20 @@ int main(int argc, char **argv)
 
                     if (isForeground)
                     {
-
                         waitpid(my_id, NULL, 0);
-                        tcsetpgrp(sh.shell_terminal, getpgid(getpid())); // todo: probably split these functions and do error checking.
+                        pid_t processGroup = getpgid(getpid());
+                        if (processGroup == (pid_t)-1)
+                        {
+                            perror("Error getting process group of parent process");
+                        }
+                        int result = tcsetpgrp(sh.shell_terminal, processGroup);
+                        if (result == -1)
+                        {
+                            perror("Error setting terminal foreground process group");
+                        }
+
+                        // Restore the shell's terminal modes in case the child process messed it up.
+                        tcsetattr(sh.shell_terminal, TCSADRAIN, &sh.shell_tmodes);
                     }
                     else
                     {
@@ -265,28 +292,21 @@ int main(int argc, char **argv)
                         printJob(newJob);
                     }
                     reportAndManageFinishedJobs(&jobList, true, false);
-
-                    /* Restore the shell’s terminal modes.  */
-                    // tcgetattr(shell_terminal, &j->tmodes); // todo: is this necessary?
-                    // tcsetattr(shell_terminal, TCSADRAIN, &shell_tmodes);
                 }
                 else
                 {
                     reportAndManageFinishedJobs(&jobList, false, false);
-                    // todo: need to set child process group? Example seems like you don't need to.
-                    printf("strange block\n");
-                    waitpid(my_id, NULL, 0); //todo: maybe delete this else block and the if check if we find out that the parent is always interactive.
+                    waitpid(my_id, NULL, 0);
                 }
             }
         }
 
         afterLineProcessed(formatted, line);
     }
-    // todo: dealloc jobs list [if need to free before exiting], same for if they type exit.
 
     fprintf(stdout, "\n");
     freeUp(line);
-    prepareForExit(&sh);
+    prepareForExit(&sh, jobList);
 
     return 0;
 }
