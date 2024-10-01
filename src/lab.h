@@ -27,7 +27,6 @@ extern "C"
     } jobNode;
 
     jobNode *jobList;
-    bool exitAfterPrintingVersion;
 
     struct shell {
         int shell_is_interactive;
@@ -68,7 +67,7 @@ extern "C"
      *
      * @param ptr the pointer to free
      */
-    void freeUp(void *ptr);
+    void freeUp(void **ptr); //todo: update comment.
 
     /**
      * @brief loops through a provided list of jobs, and removes all jobs that

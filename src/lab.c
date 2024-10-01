@@ -23,9 +23,9 @@ void printDone(job doneJob)
     printf("[%d] Done %s\n", doneJob.jobNum, doneJob.command);
 }
 
-void freeUp(void *ptr)
+void freeUp(void **ptr)
 {
-    free(ptr);
+    free(*ptr);
     ptr = NULL;
 }
 
@@ -44,8 +44,8 @@ void removeFromList(jobNode **jobList, jobNode *current, jobNode *previous, jobN
     // Current will never be null.
     // Current could be the first item, in which case previous would be null.
     // Next always may or may not be null.
-    freeUp(current->info.command);
-    freeUp(current);
+    freeUp((void **)&current->info.command);
+    freeUp((void **)&current);
 
     if (previous == NULL)
     {
@@ -181,10 +181,14 @@ char **cmd_parse(char const *line)
     char *destroyableLine = strdup(line);
     char *trimmed = trim_white(destroyableLine);
 
-    freeUp(destroyableLine);
+    freeUp((void **)&destroyableLine);
 
     const int maxArgCount = sysconf(_SC_ARG_MAX);
     char **arrayOfStrings = malloc(sizeof(char *) * maxArgCount + 1);
+    if (arrayOfStrings == NULL) {
+        perror("Error when parsing command");
+        return NULL;
+    }
 
     char *currentToken = strtok(trimmed, delims);
     int currentTokenIndex = 0;
@@ -195,7 +199,7 @@ char **cmd_parse(char const *line)
         currentToken = strtok(NULL, delims);
     }
 
-    freeUp(trimmed);
+    freeUp((void **)&trimmed);
     arrayOfStrings[currentTokenIndex] = NULL;
 
     return arrayOfStrings;
@@ -206,12 +210,12 @@ void cmd_free(char **line)
     int strIdx = 0;
     while (line[strIdx] != NULL)
     {
-        freeUp(line[strIdx]);
+        freeUp((void **)&line[strIdx]);
         line[strIdx] = NULL;
         strIdx++;
     }
 
-    freeUp(line);
+    freeUp((void **)&line);
 }
 
 char *trim_white(char *line)
@@ -244,7 +248,7 @@ char *trim_white(char *line)
     char *trimmedRet = &trimmed[idx];
 
     char *final = strdup(trimmedRet);
-    freeUp(trimmed);
+    freeUp((void **)&trimmed);
     return final;
 }
 
@@ -348,7 +352,7 @@ void sh_init(struct shell *sh)
 
 void sh_destroy(struct shell *sh)
 {
-    freeUp(sh->prompt);
+    freeUp((void **)&sh->prompt);
 }
 
 void parse_args(int argc, char **argv)
@@ -360,7 +364,7 @@ void parse_args(int argc, char **argv)
         {
         case 'v':
             fprintf(stdout, "%s Version %d.%d\n", getProgramName(), lab_VERSION_MAJOR, lab_VERSION_MINOR);
-            exitAfterPrintingVersion = true;
+            exit(0);
             break;
         default:
             break;

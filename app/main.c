@@ -19,6 +19,11 @@
 jobNode *createJobNode(job newJob)
 {
     jobNode *newJobNode = (jobNode *)malloc(sizeof(jobNode));
+    if (newJobNode == NULL) {
+        perror("Error allocating job node.");
+        return NULL;
+    }
+
     newJobNode->info = newJob;
     newJobNode->next = NULL;
     return newJobNode;
@@ -36,8 +41,8 @@ void freeList(jobNode *jobList)
     while (current != NULL)
     {
         next = current->next;
-        freeUp(current->info.command);
-        freeUp(current);
+        freeUp((void **)&current->info.command);
+        freeUp((void **)&current);
         current = next;
     }
 }
@@ -47,8 +52,9 @@ void freeList(jobNode *jobList)
  *
  * @param head a pointer to a pointer to the head of the jobNode linked list.
  * @param newJob a job to add to the end of the linked list.
+ * @return true if successful, false if an error occurred.
  */
-void append(jobNode **head, job newJob)
+bool append(jobNode **head, job newJob)
 {
     jobNode *previousNode = NULL;
     jobNode *currentNode = *head;
@@ -60,10 +66,12 @@ void append(jobNode **head, job newJob)
     if (previousNode == NULL)
     {
         *head = createJobNode(newJob);
+        return head != NULL;
     }
     else
     {
         previousNode->next = createJobNode(newJob);
+        return previousNode->next != NULL;
     }
 }
 
@@ -93,7 +101,7 @@ void afterLineProcessed(char **strArray, char *line)
 {
     cmd_free(strArray);
     add_history(line);
-    freeUp(line);
+    freeUp((void **)&line);
 }
 
 /**
@@ -132,7 +140,7 @@ int getLength(char **command)
 /**
  * @brief checks if the command's last character is an ampersand ('&'),
  * and should be run in the background. If true, this function also deletes
- * the ampersand character by replacing it with the null character ('\0').
+ * the ampersand character from the argument command string array.
  *
  * @param command The array of strings representing the command.
  * @return true if the command should be run in the background, false if not.
@@ -151,6 +159,12 @@ bool getIsBackground(char **command)
     if (lastChar == '&')
     {
         lastWord[wordLen - 1] = '\0';
+        command[cmd_len - 1] = trim_white(lastWord);
+        freeUp((void **)&lastWord);
+        if (strlen(command[cmd_len - 1]) == 0) {
+            freeUp((void**)&command[cmd_len - 1]);
+            command[cmd_len - 1] = NULL;
+        }
         return true;
     }
     return false;
@@ -183,15 +197,9 @@ int getHighestJobNumber(jobNode *jobList)
 
 int main(int argc, char **argv)
 {
-    exitAfterPrintingVersion = false;
     jobList = NULL;
 
     parse_args(argc, argv);
-
-    if (exitAfterPrintingVersion)
-    {
-        return 0;
-    }
 
     struct shell sh;
     sh_init(&sh);
@@ -203,6 +211,9 @@ int main(int argc, char **argv)
     while ((line = readline(sh.prompt)))
     {
         char **formatted = cmd_parse(line);
+        if (formatted == NULL) {
+            //todo: exit with error.
+        }
         if (formatted[0] == NULL)
         {
             reportAndManageFinishedJobs(&jobList, true, false);
@@ -225,13 +236,20 @@ int main(int argc, char **argv)
             // Get is background
             bool isForeground = !getIsBackground(formatted);
 
+            if (formatted[0] == NULL)
+            {
+                reportAndManageFinishedJobs(&jobList, true, false);
+                afterLineProcessed(formatted, line);
+                continue;
+            }
+
             // Fork and do command
             pid_t my_id = fork();
             if (my_id == -1)
             {
                 // Fork failed
+                perror("Error starting new process");
                 reportAndManageFinishedJobs(&jobList, true, false);
-                fprintf(stderr, "Failed to start a new process.\n");
                 afterLineProcessed(formatted, line);
                 prepareForExit(&sh, jobList);
                 exit(1);
@@ -254,7 +272,7 @@ int main(int argc, char **argv)
 
                 perror("An error occured while executing the command");
                 cmd_free(formatted);
-                freeUp(line);
+                freeUp((void **)&line);
                 prepareForExit(&sh, jobList);
                 exit(1);
             }
@@ -288,7 +306,10 @@ int main(int argc, char **argv)
                         newJob.command = strdup(line);
                         newJob.jobNum = getHighestJobNumber(jobList) + 1;
                         newJob.pid = my_id;
-                        append(&jobList, newJob);
+                        bool successful = append(&jobList, newJob);
+                        if (!successful) {
+                            //todo: exit.
+                        }
                         printJob(newJob);
                     }
                     reportAndManageFinishedJobs(&jobList, true, false);
@@ -305,7 +326,7 @@ int main(int argc, char **argv)
     }
 
     fprintf(stdout, "\n");
-    freeUp(line);
+    freeUp((void **)&line);
     prepareForExit(&sh, jobList);
 
     return 0;
