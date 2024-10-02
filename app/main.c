@@ -58,18 +58,22 @@ bool append(jobNode **head, job newJob)
 {
     jobNode *previousNode = NULL;
     jobNode *currentNode = *head;
+
+    // Find the last element of the list, store it in previousNode
     while (currentNode != NULL)
     {
         previousNode = currentNode;
         currentNode = currentNode->next;
     }
+
+
     if (previousNode == NULL)
-    {
+    {   // The list was empty, make the new node the head
         *head = createJobNode(newJob);
         return head != NULL;
     }
     else
-    {
+    {   // Add the new node after the last node
         previousNode->next = createJobNode(newJob);
         return previousNode->next != NULL;
     }
@@ -147,8 +151,8 @@ int getLength(char **command)
  */
 bool getIsBackground(char **command)
 {
+    // Get the last character of the command
     int cmd_len = getLength(command);
-
     char *lastWord = command[cmd_len - 1];
     int wordLen = strlen(lastWord);
     if (wordLen < 1)
@@ -156,9 +160,12 @@ bool getIsBackground(char **command)
         return false;
     }
     char lastChar = lastWord[wordLen - 1];
+
+    // If it is '&', remove it from the command string array and return true
     if (lastChar == '&')
     {
         lastWord[wordLen - 1] = '\0';
+        // It's not enough to just remove the '&', now remove dangling whitespace and delete that entry if it's empty.
         command[cmd_len - 1] = trim_white(lastWord);
         freeUp((void **)&lastWord);
         if (strlen(command[cmd_len - 1]) == 0) {
@@ -195,14 +202,33 @@ int getHighestJobNumber(jobNode *jobList)
     return highestNumber;
 }
 
+/**
+ * @brief a helper function for exiting the program early when something goes wrong.
+ * 
+ * @param cmd the parsed command to free
+ * @param line the line read in from the user to free
+ * @param sh the shell struct to destroy
+ */
+void exitEarly(char** cmd, char* line, struct shell* sh)
+{
+    reportAndManageFinishedJobs(&jobList, true, false);
+    afterLineProcessed(cmd, line);
+    prepareForExit(sh, jobList);
+    exit(1);
+}
+
 int main(int argc, char **argv)
 {
+    // Initial setup
     jobList = NULL;
-
     parse_args(argc, argv);
-
     struct shell sh;
+
     sh_init(&sh);
+    if (sh.exiting) {
+        sh_destroy(&sh);
+        exit(1);
+    }
 
     char *line;
     using_history();
@@ -210,20 +236,22 @@ int main(int argc, char **argv)
     // Main execution loop
     while ((line = readline(sh.prompt)))
     {
+        // Get input
         char **formatted = cmd_parse(line);
         if (formatted == NULL) {
-            //todo: exit with error.
+            exitEarly(formatted, line, &sh);
         }
         if (formatted[0] == NULL)
-        {
+        {   // They inputted a blank line
             reportAndManageFinishedJobs(&jobList, true, false);
             afterLineProcessed(formatted, line);
             continue;
         }
+
+        // Attempt to do builtin command
         bool was_builtin = do_builtin(&sh, formatted);
         if (was_builtin)
         {
-
             if (sh.exiting)
             {
                 afterLineProcessed(formatted, line);
@@ -232,12 +260,12 @@ int main(int argc, char **argv)
             }
         }
         else
-        {
-            // Get is background
+        {   // Command was not builtin
+            // Check if command should be run in the background
             bool isForeground = !getIsBackground(formatted);
 
             if (formatted[0] == NULL)
-            {
+            {   // They inputted a blank line
                 reportAndManageFinishedJobs(&jobList, true, false);
                 afterLineProcessed(formatted, line);
                 continue;
@@ -249,10 +277,7 @@ int main(int argc, char **argv)
             {
                 // Fork failed
                 perror("Error starting new process");
-                reportAndManageFinishedJobs(&jobList, true, false);
-                afterLineProcessed(formatted, line);
-                prepareForExit(&sh, jobList);
-                exit(1);
+                exitEarly(formatted, line, &sh);
             }
             else if (my_id == 0)
             {
@@ -268,6 +293,7 @@ int main(int argc, char **argv)
                     signal(SIGTTOU, SIG_DFL);
                 }
                 char *cmdName = formatted[0];
+                // Transform yourself into the new process and execute
                 execvp(cmdName, formatted);
 
                 perror("An error occured while executing the command");
@@ -285,13 +311,13 @@ int main(int argc, char **argv)
 
                     if (isForeground)
                     {
-                        waitpid(my_id, NULL, 0);
+                        waitpid(my_id, NULL, 0); // The child is in the foreground, so wait for it to complete before continuing execution
                         pid_t processGroup = getpgid(getpid());
                         if (processGroup == (pid_t)-1)
                         {
                             perror("Error getting process group of parent process");
                         }
-                        int result = tcsetpgrp(sh.shell_terminal, processGroup);
+                        int result = tcsetpgrp(sh.shell_terminal, processGroup); // Regain control of the terminal
                         if (result == -1)
                         {
                             perror("Error setting terminal foreground process group");
@@ -302,13 +328,14 @@ int main(int argc, char **argv)
                     }
                     else
                     {
+                        // Child is running in the background, so we make a new job entry for it
                         job newJob;
                         newJob.command = strdup(line);
                         newJob.jobNum = getHighestJobNumber(jobList) + 1;
                         newJob.pid = my_id;
                         bool successful = append(&jobList, newJob);
                         if (!successful) {
-                            //todo: exit.
+                            exitEarly(formatted, line, &sh);
                         }
                         printJob(newJob);
                     }
@@ -316,6 +343,7 @@ int main(int argc, char **argv)
                 }
                 else
                 {
+                    // Parent is not running interactively.
                     reportAndManageFinishedJobs(&jobList, false, false);
                     waitpid(my_id, NULL, 0);
                 }

@@ -59,28 +59,27 @@ void removeFromList(jobNode **jobList, jobNode *current, jobNode *previous, jobN
 
 void reportAndManageFinishedJobs(jobNode **jobList, bool printAny, bool printAll)
 {
-    if (jobList == NULL)
+    if (jobList == NULL) // This shouldn't happen.
     {
-        printf("O H NOOO\n");
-        return; // This shouldn't happen.
+        errno = EINVAL;
+        perror("Error while reporting and managing jobs");
+        return;
     }
 
     jobNode *previousNode = NULL;
     jobNode *currentNode = *jobList;
-    while (currentNode != NULL)
+    while (currentNode != NULL) // Iterate through the whole list
     {
-        int doneWaiting = waitpid(currentNode->info.pid, NULL, WNOHANG);
         jobNode *nextNode = currentNode->next;
+        int doneWaiting = waitpid(currentNode->info.pid, NULL, WNOHANG); // Check if still waiting for the job to complete.
         if (doneWaiting != 0)
-        {
+        {   // Job finished
             if (printAny)
                 printDone(currentNode->info);
             removeFromList(jobList, currentNode, previousNode, nextNode);
-        } // else if (doneWaiting < 0) {
-        //     fprintf(stderr, "Unable to check status of pid %d (%s).\n", currentNode->info.pid, strerror(errno));
-        // }
+        }
         else
-        {
+        {   // Job still running
             previousNode = currentNode;
             if (printAny && printAll)
                 printJobRunning(currentNode->info);
@@ -114,7 +113,7 @@ char *get_prompt(const char *env)
         }
     }
 
-    char *mutableStr = strdup(constStr);
+    char *mutableStr = strdup(constStr); // Duplicate to protect the contents of the const char*s, it is not good to give direct access to the environment variable contents.
 
     return mutableStr;
 }
@@ -132,16 +131,16 @@ int change_dir(char **dir)
 
     const char *toDirectory;
     if (toDir == NULL)
-    {
+    {   // No argument was provided
         const char *homeDirectoryEnvVarContents = getenv("HOME");
         if (homeDirectoryEnvVarContents != NULL)
         {
             toDirectory = homeDirectoryEnvVarContents;
         }
         else
-        {
-            struct passwd *userEntry = getpwuid(getuid());
+        {   // Environment variable didn't work, now trying to get user passwd entry.
             errno = 0;
+            struct passwd *userEntry = getpwuid(getuid());
             if (userEntry == NULL)
             {
                 if (errno == 0)
@@ -178,11 +177,12 @@ char **cmd_parse(char const *line)
 {
     const char *delims = " ";
 
+    // Trim white
     char *destroyableLine = strdup(line);
     char *trimmed = trim_white(destroyableLine);
-
     freeUp((void **)&destroyableLine);
 
+    // Allocate array
     const int maxArgCount = sysconf(_SC_ARG_MAX);
     char **arrayOfStrings = malloc(sizeof(char *) * maxArgCount + 1);
     if (arrayOfStrings == NULL) {
@@ -190,17 +190,18 @@ char **cmd_parse(char const *line)
         return NULL;
     }
 
+    // Split trimmed string into tokens by spaces
     char *currentToken = strtok(trimmed, delims);
     int currentTokenIndex = 0;
     while (currentToken != NULL && currentTokenIndex < maxArgCount)
     {
-        arrayOfStrings[currentTokenIndex] = strdup(currentToken);
+        arrayOfStrings[currentTokenIndex] = strdup(currentToken); // Duplicate all the tokens for cleaner memory management
         currentTokenIndex++;
         currentToken = strtok(NULL, delims);
     }
 
-    freeUp((void **)&trimmed);
-    arrayOfStrings[currentTokenIndex] = NULL;
+    freeUp((void **)&trimmed); // Free all of original string, which has been broken up by strtok
+    arrayOfStrings[currentTokenIndex] = NULL; // Put an end cap on the array
 
     return arrayOfStrings;
 }
@@ -211,7 +212,6 @@ void cmd_free(char **line)
     while (line[strIdx] != NULL)
     {
         freeUp((void **)&line[strIdx]);
-        line[strIdx] = NULL;
         strIdx++;
     }
 
@@ -220,7 +220,7 @@ void cmd_free(char **line)
 
 char *trim_white(char *line)
 {
-    char *trimmed = strdup(line);
+    char *trimmed = strdup(line); // Let's not operate on the original string they passed in. Instead, return a modified copy.
 
     if (trimmed == NULL)
     {
@@ -244,11 +244,13 @@ char *trim_white(char *line)
         endIdx--;
     }
 
-    trimmed[endIdx] = '\0';
-    char *trimmedRet = &trimmed[idx];
+    trimmed[endIdx] = '\0'; // End the string at the first trailing space
+    char *trimmedRet = &trimmed[idx]; // Start the string after the first leading space
 
+    // Duplicate the output string and free the modified one for clean memory management
     char *final = strdup(trimmedRet);
     freeUp((void **)&trimmed);
+
     return final;
 }
 
@@ -269,19 +271,22 @@ bool do_builtin(struct shell *sh, char **argv)
     }
 
     char *cmd = argv[0];
+
+    // If it is the jobs command, print all jobs and exit.
     bool printAll = false;
     if (is(cmd, "jobs"))
     {
         printAll = true;
     }
 
-    reportAndManageFinishedJobs(&jobList, true, printAll);
+    reportAndManageFinishedJobs(&jobList, true, printAll); // Still need to report finished jobs and manage the list even if it wasn't the jobs command.
 
     if (printAll)
     {
         return true;
     }
 
+    // If it was not the jobs command, continue execution here.
     if (is(cmd, "cd"))
     {
         change_dir(argv);
@@ -337,17 +342,16 @@ void sh_init(struct shell *sh)
         if (setpgid(sh->shell_pgid, sh->shell_pgid) < 0)
         {
             perror("Couldn't put the shell in its own process group");
-            // todo: need to do this?? Either don't exit, or have to free everything! If exiting, can set exit flag to true and deal with it in main after calling sh_init.
-            exit(1);
+            sh->exiting = true;
+            return;
         }
 
-        /* Grab control of the terminal.  */
+        // Grab control of the terminal
         tcsetpgrp(sh->shell_terminal, sh->shell_pgid);
 
-        /* Save default terminal attributes for shell.  */
+        // Save default terminal attributes for shell
         tcgetattr(sh->shell_terminal, &sh->shell_tmodes);
     }
-    // todo: what about shell_pgid and shell_tmodes in the else case?
 }
 
 void sh_destroy(struct shell *sh)

@@ -65,9 +65,9 @@ extern "C"
      * @brief a helper function to free a pointer's allocated memory, and set
      * the pointer to NULL so freeing it again won't cause a problem.
      *
-     * @param ptr the pointer to free
+     * @param ptr a pointer to the pointer to free
      */
-    void freeUp(void **ptr); //todo: update comment.
+    void freeUp(void **ptr);
 
     /**
      * @brief loops through a provided list of jobs, and removes all jobs that
